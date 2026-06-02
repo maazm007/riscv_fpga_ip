@@ -76,11 +76,299 @@ Observed Output: Product from 1 to 6 is 720
 **Ques 4:**  Where would a new FPGA IP block logically integrate?  
 ***Answer:** A new FPGA IP block would integrate as a memory-mapped peripheral connected to the SoC interconnect, allowing communication with the RISC-V core through standard load/store operations.*  
   
---------------------------------------------------------  
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
   
 ***Snap 4: Set up of Local Environment (Ubuntu 22.04 LTS on VM)***  
   
 <img width="960" height="540" alt="fpga4" src="https://github.com/user-attachments/assets/511d4543-511e-4029-abdc-e8761874792b" />
   
----------------------------------------------------------------
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+
+Task-2: Design & Integrate Your First Memory-Mapped IP  
+
+**Objective:** Design a simple memory-mapped IP, integrate it into the existing RISC-V SoC, and validate it through simulation. Following are the specifications of IP:
+* One 32-bits register 
+* Writing to the register updates an output signal
+* Reading the register returns the last written value  
+* Memory-mapped interface, connected to the existing CPU bus  
+* Uses the same bus signals already present in the SoC  
+
+**The relevant files which will be used in this task are as follows:**  
+```
+basicRISCV/
+├── RTL/
+│   ├── riscv.v                 ← Top-level SoC + CPU + Memory
+│   ├── ice40_stubs.v           ← UART transmitter peripheral
+│   └── gpio_output.v           ← For Task 2 (1 register GPIO)
+│
+├── Firmware/
+│   ├── gpio_test.c             ← C test programs
+│   ├── firmware.hex            ← Linker script
+│   └── Makefile
+```  
+  
+### Step-1: Understanding the SoC Top-Level (`riscv.v`)
+
+#### 1. The `SOC` Module
+
+The `SOC` module is the **top-level integration point**. It connects:
+
+- CPU
+- RAM
+- UART
+- LED logic
+- Clock and reset
+
+This is where **all peripherals are wired together**.
+
+Key signals exposed in the SoC:
+
+```verilog
+wire [31:0] mem_addr;
+wire [31:0] mem_rdata;
+wire        mem_rstrb;
+wire [31:0] mem_wdata;
+wire [3:0]  mem_wmask;
+```
+
+These signals form the CPU bus interface.
+
+#### 2. CPU ↔ Bus Interface
+
+Inside `riscv.v`, the CPU is instantiated as:
+
+```verilog
+Processor CPU (
+    .clk        (clk),
+    .resetn     (resetn),
+    .mem_addr   (mem_addr),
+    .mem_rdata  (mem_rdata),
+    .mem_rstrb  (mem_rstrb),
+    .mem_wdata  (mem_wdata),
+    .mem_wmask  (mem_wmask)
+);
+```
+
+From this, we learn the CPU does not know about peripherals. It only:
+
+- Places an address on `mem_addr`
+- Asserts read (`mem_rstrb`) or write (`mem_wmask`)
+- Receives data via `mem_rdata`
+
+All peripheral logic must respond to these signals.  
+  
+#### 3. Address Decoding  
+
+```verilog  
+wire isIO  = mem_addr[22];
+wire isRAM = !isIO;
+```
+
+**Key Learning:** Bit 22 of the address selects IO vs RAM.
+
+- If `mem_addr[22] == 0` → RAM
+- If `mem_addr[22] == 1` → IO (peripherals)
+
+This is the primary decoding rule used throughout the SoC.  
+  
+#### 4. Word-Aligned Peripheral Addressing
+
+The SoC uses word-aligned addressing:
+
+```verilog
+wire [29:0] mem_wordaddr = mem_addr[31:2];
+```
+
+Peripherals are selected using 1-hot bits of `mem_wordaddr`.
+
+Defined IO layout:
+
+```verilog
+localparam IO_LEDS_bit      = 0;
+localparam IO_UART_DAT_bit  = 1;
+localparam IO_UART_CNTL_bit = 2;
+```  
+  
+| Peripheral | Word Address Bit | Purpose            |
+|------------|------------------|--------------------|
+| LED        | bit 0            | Write LED register |
+| UART TX    | bit 1            | Write UART data    |
+| UART ST    | bit 2            | Read UART status   |
+
+#### 5. LED Peripheral (Simple Register)
+
+LED logic is implemented directly in SOC:
+
+```verilog
+always @(posedge clk) begin
+    if (!resetn)
+        LEDS <= 5'b0;
+    else if (isIO & mem_wstrb & mem_wordaddr[IO_LEDS_bit])
+        LEDS <= mem_wdata[4:0];
+end
+```
+
+Key observations:
+
+- LEDs are memory-mapped
+- Written using `mem_wdata`
+- Enabled by `isIO`, `mem_wstrb`, and address decode
+
+This serves as a reference model for writing a GPIO peripheral.  
+  
+### Step 2 – Write the GPIO IP RTL (Mandatory)  
+  
+This step focuses on **designing a standalone, correct GPIO IP block** that follows the **existing SoC bus protocol** discovered in Step 1.
+
+At this stage:
+- The GPIO IP is **not yet connected to the SoC**
+- The goal is **correct RTL behavior**, not optimization
+- The IP must be **bus-compliant and synthesizable**  
+
+*Now we need to create a RTL file named as ```gpio_output.v```*
+  
+The GPIO IP exposes the following interface:    
+```verilog
+input             clk,
+input             resetn,
+input             gpio_sel,    // High when CPU is using this IP
+input             gpio_we,     // Write Enable
+input      [31:0] gpio_wdata,  // Data written by CPU
+output reg [31:0] gpio_rdata,  // Data read by CPU
+output     [31:0] gpio_out;    // Connection to outer ports
+reg        [31:0] gpio_reg;    // Internal Register
+```  
+#### Following is the verilog code for ```gpio_output.v```    
+```verilog
+/*
+* Simple GPIO Output IP (Write-Only with readback)
+* Memory-mapped register at IO_GPIO_bit = 3
+* Address is 0x00400020
+*/
+
+module gpio_output(
+       input clk,
+       input resetn,
+       input gpio_sel, // High when CPU is using this IP
+       input gpio_we, // Write Enable
+       input [31:0] gpio_wdata, // Data written by CPU
+       output reg [31:0] gpio_rdata, // Data read by CPU
+
+      // External Hardware Output
+
+       output [31:0] gpio_out); // Connection to outer ports
+
+       reg [31:0] gpio_reg; // Latching the value      
+
+       // Write Logic
+       always@(posedge clk) begin
+          if(~resetn)
+             gpio_reg <= 32'd0;
+          else begin
+             if(gpio_sel && gpio_we)
+                gpio_reg <= gpio_wdata;
+          end
+       end
+
+       // Readback Logic
+       // When CPU read this IP, return the last value stored in the register
+       // Otherwise, drive the read bus to 0
+       always@(*) begin
+          if(gpio_sel)
+             gpio_rdata <= gpio_reg;
+          else
+             gpio_rdata <= 32'd0;
+       end
+
+       // Drive External Logic
+       assign gpio_out = gpio_reg;
+endmodule
+```  
+  
+### Step 3 – Integrate the IP into the SoC (Mandatory)  
+  
+This step integrates the previously designed GPIO IP into the existing RISC-V SoC. The goal is to make the GPIO a first-class memory-mapped peripheral that the CPU can access just like RAM, LEDs, and UART.  
+  
+#### Now, ```riscv.v``` (SOC Top Level) file will be modified. Following are the changes that will be done:
+* Instantiating gpio_ip
+* Adding address decoding
+* Routing bus signals
+* Connecting readback data to the CPU  
+
+#### GPIO Address Allocation  
+  
+The GPIO IP is mapped using:
+
+```verilog
+localparam IO_GPIO_bit = 3;
+```  
+  
+#### GPIO IP Instantiation  
+```verilog
+wire [31:0] gpio_rdata;
+
+gpio_output custon_gpio_inst(
+        .clk(clk),
+        .resetn(resetn),
+        .gpio_sel(gpio_sel),
+        .gpio_we(mem_wstrb),
+        .gpio_wdata(mem_wdata),
+        .gpio_rdata(gpio_rdata),
+        .gpio_out(GPIO_OUT)
+   );
+```  
+  
+#### Integrating GPIO Readback into the Bus   
+```verilog  
+wire [31:0] IO_rdata =
+               mem_wordaddr[IO_UART_CNTL_bit] ? { 22'b0, !uart_ready, 9'b0} :
+               mem_wordaddr[IO_GPIO_bit]      ? gpio_rdata : 32'd0;
+
+assign mem_rdata = isRAM ? RAM_rdata : IO_rdata ;
+```  
+  
+### Step 4 – Validate using Simulation (Mandatory)  
+  
+This step proves correctness of the GPIO IP integration using software + RTL simulation. Until now, all work was structural. In this step, we execute code on the CPU and verify real behavior.  
+  
+#### Creation of UART STUB (Simulation-only)  
+```SB_HFOSC``` (High-Frequency Oscillator) and ```SB_PLL40_CORE```(Phase-Locked Loop) are physical, hardware-specific silicon blocks that exist strictly inside Lattice iCE40 FPGAs.
+
+Because ```iverilog``` is a generic software simulator, it has no idea what these vendor-specific names mean. When it reads the code and sees ```SB_HFOSC```, it throws its hands up because command is asking it to simulate a physical piece of silicon it doesn't have the blueprint for.  
+  
+Before running the simulation, the UART in the SoC is replaced with a lightweight simulation-only module called ```ice40_stubs.v```  
+  
+During simulation we compile with -DBENCH, which activates:
+```
+uart_stub.v → prints characters to console
+```   
+and do not consider,  
+```
+emitter_uart.v → real serial UART output
+```  
+
+This allows the program output (e.g. GPIO readback) to be seen directly in the terminal during simulation without needing to decode serial timing.  
+  
+#### Creation of firmware test program file  
+This C program runs on the RISC-V CPU and interacts with GPIO  
+```C
+#include <stdio.h>
+#include <stdint.h>
+
+#define GPIO_ADDR 0x00400020
+volatile uint32_t *gpio = (volatile uint32_t *)GPIO_ADDR;
+
+void main() {
+    *gpio = 0xABCDEF12;
+    printf("GPIO test 1: %x\n", (unsigned int)*gpio);
+
+    *gpio = 0xA0A0A0A0;
+    printf("GPIO test 2: %x\n", (unsigned int)*gpio);
+
+    *gpio = 0x02468135;
+    printf("GPIO test 3: %x\n", (unsigned int)*gpio);
+
+    printf("ALL TESTS DONE\n");
+}
+```
 
