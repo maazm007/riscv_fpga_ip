@@ -24,27 +24,26 @@ Task-1: Environment Setup & RISC-V Reference Bring-Up
 ### **Following are the snapshots required for submission**  
   
 ***Snap 1: Compilation of referebce RISC-V program***  
-  
-<img width="960" height="451" alt="fpga1" src="https://github.com/user-attachments/assets/d39da0ae-2e42-4765-b097-6ea6ce49bece" />
-<br>  
 
 ```
 Expected Output: Sum from 1 to 9 is 45
 Observed Output: Sum from 1 to 9 is 45
-```   
+``` 
+  
+<img width="960" height="451" alt="fpga1" src="https://github.com/user-attachments/assets/d39da0ae-2e42-4765-b097-6ea6ce49bece" />
 
 ----------------------------------------- 
 
 ***Snap 2: Optional Confidence Task***  
 In this task, I have changed the reference program and compiled my own program written in C language using ```riscv cross-compiler``` and then simulated using ```spike simulator```  
-  
-<img width="960" height="448" alt="fpga2" src="https://github.com/user-attachments/assets/bc68e1b9-528c-4202-8019-db436b6c941a" />
-<br>  
 
 ```
 Expected Output: Product from 1 to 6 is 720
 Observed Output: Product from 1 to 6 is 720
 ```  
+  
+<img width="960" height="448" alt="fpga2" src="https://github.com/user-attachments/assets/bc68e1b9-528c-4202-8019-db436b6c941a" />
+<br>  
   
 ------------------------------------------------------------------
   
