@@ -12,7 +12,7 @@
 **GitHub Profile:** [maazm007](https://github.com/maazm007?tab=repositories)  
 **LinkedIN Profile:** [maazm-ece-vlsi](https://www.linkedin.com/in/maazms-ece-vlsi/)
 
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+***
 
 Task-1: Environment Setup & RISC-V Reference Bring-Up  
   
@@ -32,7 +32,7 @@ Observed Output: Sum from 1 to 9 is 45
   
 <img width="960" height="451" alt="fpga1" src="https://github.com/user-attachments/assets/d39da0ae-2e42-4765-b097-6ea6ce49bece" />
 
------------------------------------------ 
+*** 
 
 ***Snap 2: Optional Confidence Task***  
 In this task, I have changed the reference program and compiled my own program written in C language using ```riscv cross-compiler``` and then simulated using ```spike simulator```  
@@ -45,7 +45,7 @@ Observed Output: Product from 1 to 6 is 720
 <img width="960" height="448" alt="fpga2" src="https://github.com/user-attachments/assets/bc68e1b9-528c-4202-8019-db436b6c941a" />
 <br>  
   
-------------------------------------------------------------------
+***
   
 ***Snap 3: VSD FPGA Firmware Build (No Hardware Required)***    
 * Firstly, the ```riscv_logo.c``` has been created and then **hex** has to be generated using the command ```make riscv_logo.bram.hex```
@@ -61,7 +61,8 @@ Observed Output: Product from 1 to 6 is 720
   
 <img width="960" height="449" alt="fpga3" src="https://github.com/user-attachments/assets/9854a322-3df8-465c-be1d-ef6842cb5b5a" />
   
---------------------------------------------------- 
+***  
+
 ***Understanding Check Questions***  
 <br>
 **Ques 1:** Where is RISC-V program located?  
@@ -76,13 +77,13 @@ Observed Output: Product from 1 to 6 is 720
 **Ques 4:**  Where would a new FPGA IP block logically integrate?  
 ***Answer:** A new FPGA IP block would integrate as a memory-mapped peripheral connected to the SoC interconnect, allowing communication with the RISC-V core through standard load/store operations.*  
   
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+*** 
   
 ***Snap 4: Set up of Local Environment (Ubuntu 22.04 LTS on VM)***  
   
 <img width="960" height="540" alt="fpga4" src="https://github.com/user-attachments/assets/511d4543-511e-4029-abdc-e8761874792b" />
   
---------------------------------------------------------------------------------------------------------------------------------------------------------------------------  
+***  
 
 Task-2: Design & Integrate Your First Memory-Mapped IP  
 
@@ -109,7 +110,7 @@ basicRISCV/
   
 ### Step-1: Understanding the SoC Top-Level (`riscv.v`)
 
-#### 1. The `SOC` Module
+### 1(a) The `SOC` Module
 
 The `SOC` module is the **top-level integration point**. It connects:
 
@@ -133,7 +134,7 @@ wire [3:0]  mem_wmask;
 
 These signals form the CPU bus interface.
 
-#### 2. CPU ↔ Bus Interface
+### 1(b) CPU ↔ Bus Interface
 
 Inside `riscv.v`, the CPU is instantiated as:
 
@@ -157,7 +158,7 @@ From this, we learn the CPU does not know about peripherals. It only:
 
 All peripheral logic must respond to these signals.  
   
-#### 3. Address Decoding  
+### 1(c) Address Decoding  
 
 ```verilog  
 wire isIO  = mem_addr[22];
@@ -171,7 +172,7 @@ wire isRAM = !isIO;
 
 This is the primary decoding rule used throughout the SoC.  
   
-#### 4. Word-Aligned Peripheral Addressing
+### 1(d) Word-Aligned Peripheral Addressing
 
 The SoC uses word-aligned addressing:
 
@@ -195,7 +196,7 @@ localparam IO_UART_CNTL_bit = 2;
 | UART TX    | bit 1            | Write UART data    |
 | UART ST    | bit 2            | Read UART status   |
 
-#### 5. LED Peripheral (Simple Register)
+### 1(e) LED Peripheral (Simple Register)
 
 LED logic is implemented directly in SOC:
 
@@ -215,6 +216,8 @@ Key observations:
 - Enabled by `isIO`, `mem_wstrb`, and address decode
 
 This serves as a reference model for writing a GPIO peripheral.  
+
+***
   
 ### Step 2 – Write the GPIO IP RTL (Mandatory)  
   
@@ -238,7 +241,7 @@ output reg [31:0] gpio_rdata,  // Data read by CPU
 output     [31:0] gpio_out;    // Connection to outer ports
 reg        [31:0] gpio_reg;    // Internal Register
 ```  
-#### Following is the verilog code for ```gpio_output.v```    
+### Following is the verilog code for ```gpio_output.v```    
 ```verilog
 /*
 * Simple GPIO Output IP (Write-Only with readback)
@@ -284,18 +287,20 @@ module gpio_output(
        assign gpio_out = gpio_reg;
 endmodule
 ```  
-  
+
+***  
+
 ### Step 3 – Integrate the IP into the SoC (Mandatory)  
   
 This step integrates the previously designed GPIO IP into the existing RISC-V SoC. The goal is to make the GPIO a first-class memory-mapped peripheral that the CPU can access just like RAM, LEDs, and UART.  
   
-#### Now, ```riscv.v``` (SOC Top Level) file will be modified. Following are the changes that will be done:
+### Now, ```riscv.v``` (SOC Top Level) file will be modified. Following are the changes that will be done:
 * Instantiating gpio_ip
 * Adding address decoding
 * Routing bus signals
 * Connecting readback data to the CPU  
 
-#### GPIO Address Allocation  
+### 3(a) GPIO Address Allocation  
   
 The GPIO IP is mapped using:
 
@@ -303,7 +308,7 @@ The GPIO IP is mapped using:
 localparam IO_GPIO_bit = 3;
 ```  
   
-#### GPIO IP Instantiation  
+### 3(b) GPIO IP Instantiation  
 ```verilog
 wire [31:0] gpio_rdata;
 
@@ -318,20 +323,22 @@ gpio_output custon_gpio_inst(
    );
 ```  
   
-#### Integrating GPIO Readback into the Bus   
+### 3(c) Integrating GPIO Readback into the Bus   
 ```verilog  
 wire [31:0] IO_rdata =
                mem_wordaddr[IO_UART_CNTL_bit] ? { 22'b0, !uart_ready, 9'b0} :
                mem_wordaddr[IO_GPIO_bit]      ? gpio_rdata : 32'd0;
 
 assign mem_rdata = isRAM ? RAM_rdata : IO_rdata ;
-```  
+```
+
+***  
   
 ### Step 4 – Validate using Simulation (Mandatory)  
   
 This step proves correctness of the GPIO IP integration using software + RTL simulation. Until now, all work was structural. In this step, we execute code on the CPU and verify real behavior.  
   
-#### Creation of UART STUB (Simulation-only)  
+### 4(a) Creation of UART STUB (Simulation-only)  
 ```SB_HFOSC``` (High-Frequency Oscillator) and ```SB_PLL40_CORE```(Phase-Locked Loop) are physical, hardware-specific silicon blocks that exist strictly inside Lattice iCE40 FPGAs.
 
 Because ```iverilog``` is a generic software simulator, it has no idea what these vendor-specific names mean. When it reads the code and sees ```SB_HFOSC```, it throws its hands up because command is asking it to simulate a physical piece of silicon it doesn't have the blueprint for.  
@@ -340,7 +347,7 @@ Before running the simulation, the UART in the SoC is replaced with a lightweigh
   
 During simulation we compile with -DBENCH, which activates:
 ```
-uart_stub.v → prints characters to console
+ice40_stubs.v → prints characters to console
 ```   
 and do not consider,  
 ```
@@ -349,7 +356,7 @@ emitter_uart.v → real serial UART output
 
 This allows the program output (e.g. GPIO readback) to be seen directly in the terminal during simulation without needing to decode serial timing.  
   
-#### Creation of firmware test program file  
+### 4(b) Creation of firmware test program file  
 This C program runs on the RISC-V CPU and interacts with GPIO  
 ```C
 #include <stdio.h>
@@ -371,4 +378,66 @@ void main() {
     printf("ALL TESTS DONE\n");
 }
 ```
+
+### 4(c) Firmware Build & Memory Load
+
+Commands used:
+
+```bash
+make clean
+make gpio_test.bram.hex
+```
+
+What happens internally:
+
+- C code → RISC-V ELF
+- ELF → firmware.hex
+- firmware.hex loaded into SoC RAM using `$readmemh`
+
+This confirms:
+
+- Instruction fetch
+- Data access
+- Memory-mapped IO access    
+  
+### 4(d) RTL Simulation (iverilog + vvp)
+
+Simulation command:
+
+```bash
+iverilog -DBENCH -o sim2.vvp riscv.v ice40_stubs.v
+vvp sim2.vvp
+```  
+Expected Output:  
+```
+GPIO test 1: ABCDEF12 
+GPIO test 2: A0A0A0A0
+GPIO test 3: 2468135  
+```  
+  
+<img width="1920" height="981" alt="fpga5" src="https://github.com/user-attachments/assets/baa5557d-ccfd-4749-8011-bb878180519e" />
+
+
+<img width="1920" height="981" alt="fpga6" src="https://github.com/user-attachments/assets/0fd94286-18b6-4625-9d7e-ea83f51ea880" />
+  
+  
+### 4(e) Waveform-Based Validation (GTKWave)  
+  
+Opening the Waveform
+
+```bash
+gtkwave sim2.vcd
+```
+
+<img width="1920" height="981" alt="fpga7" src="https://github.com/user-attachments/assets/b466ba84-fd8c-4283-882a-e30c66ab188f" />
+
+
+Following points should be observed in the waveform to verify the correct functionality:  
+* ```mem_addr[31:0]``` address reaches ```0x00400020```
+* ```isIO``` signal goes high whenever GPIO has been accessed
+* ```we``` signal goes high when the Write operation has been performed
+* ```mem_rstrb``` goes high when the Read operation has been performed
+* ```GPIO_OUT``` updates to the value ```ABCDEF12```
+
+***  
 
