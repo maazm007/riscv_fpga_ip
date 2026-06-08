@@ -1037,5 +1037,55 @@ RTL/
   
 <img width="1920" height="981" alt="fpga15" src="https://github.com/user-attachments/assets/cdd649c4-8b16-4ec3-9596-29639e0bcfea" />
   
+***  
+
+### Hardware Validation
+
+Hardware validation is a critical step in IP development because simulation, while accurate, operates in an idealized environment. Running the SPI Master IP on actual FPGA hardware confirms that the RTL synthesizes correctly, meets real timing constraints, and functions reliably on physical silicon. It validates that the memory-mapped register interface works correctly when driven by a real RISC-V CPU, and that the SPI signals (SCLK, MOSI, MISO, CS_N) are correctly generated on physical pins. Successfully receiving 0xA5 back via MISO loopback on hardware proves the complete signal path - from C firmware through the CPU bus, through the SPI state machine, out to physical pins, and back - works exactly as designed, giving confidence that the IP is ready for real-world deployment.  
+  
+### *Following changes need to be done for this step*  
+  
+* Open the ```VSDSquadronFM.pcf``` . We have to map the SPI signals pins to the VSDSquadron FPGA pins
+```bash
+vim VSDSquadron.pcf
+set_io SPI_CS_N 9
+set_io SPI_SCLK 10
+set_io SPI_MOSI 11
+set_io SPI_MISO 12
+```  
+* Once done, now we will do the process of flashing the code into the FPGA. Before moving on this step, make sure to connect ***pin 11 (MOSI)*** to ***pin 12 (MISO)*** on FPGA through jumper wire. Since no external SPI slave device was available, ```SPI_MOSI``` and ```SPI_MISO``` were shorted together to create a hardware loopback. Any data transmitted by the SPI Master on MOSI is immediately fed back as MISO input, allowing the full transmit and receive path to be validated on real hardware. Receiving 0xA5 back after transmitting 0xA5 confirms the SPI IP works correctly on physical silicon. Now run the following command,
+```bash
+sudo make clean
+sudo make build
+```  
+  
+* After this, connect your VSDSquadron FPGA board and CH340
+* On VirtualBox:  
+Devices → USB → FTDI Single RS232-HS  
+Devices → USB → QinHeng Electronics USB Serial  
+* Verify the connection by running ```lsusb```. This must show both devices name connected
+* Now do the following,
+```bash
+sudo make flash
+sudo make terminal
+```  
+  
+### Following are the snapshots taken during the process and images that shows the final output with Board    
+
+<img width="1920" height="981" alt="fpga16" src="https://github.com/user-attachments/assets/ed0c2eac-b6a8-413a-ba1d-a8bc9f8a08be" />  
+
+<img width="1920" height="981" alt="fpga17" src="https://github.com/user-attachments/assets/65a31819-9478-49b9-8f2e-231d5be5ca62" />  
+
+<img width="1920" height="981" alt="fpga18" src="https://github.com/user-attachments/assets/601a446e-ea01-4515-a455-6f87c0deb4f4" />  
+
+<img width="1376" height="1616" alt="IMG20260608151123" src="https://github.com/user-attachments/assets/52effcfa-0664-4b49-ae6e-bba4d0579390" />  
+
+<img width="6144" height="8192" alt="IMG20260608151229" src="https://github.com/user-attachments/assets/6745d34c-0cfd-4e17-affa-6b392374fabd" />  
+
 ***
+
+
+
+
+
 
