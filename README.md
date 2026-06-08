@@ -14,13 +14,14 @@
 
 ***
 
-Task-1: Environment Setup & RISC-V Reference Bring-Up  
+<details>
+<summary><b>Task-1:</b> Environment Setup & RISC-V Reference Bring-Up</summary>  
   
 **Objective:** Set up the development environment and successfully run a working RISC-V reference design, followed by running the VSDFPGA labs on the same environment. This task focuses on:  
 * Toolchain readiness  
 * Understanding the RISC-V execution flow
-* Preparing for upcoming FPGA and IP development work
-  
+* Preparing for upcoming FPGA and IP development work  
+
 ### **Following are the snapshots required for submission**  
   
 ***Snap 1: Compilation of referebce RISC-V program***  
@@ -82,10 +83,13 @@ Observed Output: Product from 1 to 6 is 720
 ***Snap 4: Set up of Local Environment (Ubuntu 22.04 LTS on VM)***  
   
 <img width="960" height="540" alt="fpga4" src="https://github.com/user-attachments/assets/511d4543-511e-4029-abdc-e8761874792b" />
-  
+
+</details>  
+
 ***  
 
-Task-2: Design & Integrate Your First Memory-Mapped IP  
+<details>  
+<summary><b>Task-2:</b> Design & Integrate Your First Memory-Mapped IP</summary>  
 
 **Objective:** Design a simple memory-mapped IP, integrate it into the existing RISC-V SoC, and validate it through simulation. Following are the specifications of IP:
 * One 32-bits register 
@@ -287,7 +291,7 @@ module gpio_output(
        assign gpio_out = gpio_reg;
 endmodule
 ```  
-
+  
 ***  
 
 ### Step 3 – Integrate the IP into the SoC (Mandatory)  
@@ -438,10 +442,13 @@ Following points should be observed in the waveform to verify the correct functi
 * ```we``` signal goes high when the Write operation has been performed
 * ```mem_rstrb``` goes high when the Read operation has been performed
 * ```GPIO_OUT``` updates to the value ```ABCDEF12```
+  
+</details>  
 
 ***  
 
-Task-3: Design a Multi-Register GPIO IP with Software Control  
+<details>
+<summary><b>Task-3:</b> Design a Multi-Register GPIO IP with Software Control</summary>  
 
 **Objective:** We will upgrade our GPIO IP into a realistic peripheral with multiple registers that software can configure and control. We will design a proper register map, implement direction control, and validate everything using a C program running on the RISC-V core. This task strengthens our understanding of memory-mapped I/O and prepares us for more advanced IPs used in real SoCs. This task focuses on,
 * Designing a proper register map
@@ -796,10 +803,13 @@ gtkwave sim3.vcd
 - No unexpected transitions observed — design is stable and behaves deterministically  
   
 <img width="1920" height="981" alt="fpga11" src="https://github.com/user-attachments/assets/e3e9df37-cff8-4ad6-a767-66dc575af1c5" />  
+  
+</details>  
 
 ***  
-
-Task-4: Real Peripheral IP Development (Core Contributor Task)  
+  
+<details>    
+<summary><b>Task-4:</b> Real Peripheral IP Development (Core Contributor Task)</summary>  
 
 **Objective:** In this task, selected participants will individually own and build a real SoC peripheral IP, similar to how work is distributed in semiconductor and FPGA teams.  
 
@@ -1081,6 +1091,8 @@ sudo make terminal
 <img width="1376" height="1616" alt="IMG20260608151123" src="https://github.com/user-attachments/assets/52effcfa-0664-4b49-ae6e-bba4d0579390" />  
 
 <img width="6144" height="8192" alt="IMG20260608151229" src="https://github.com/user-attachments/assets/6745d34c-0cfd-4e17-affa-6b392374fabd" />  
+  
+</details>  
 
 ***
 
