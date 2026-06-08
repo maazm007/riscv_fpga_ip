@@ -797,7 +797,245 @@ gtkwave sim3.vcd
   
 <img width="1920" height="981" alt="fpga11" src="https://github.com/user-attachments/assets/e3e9df37-cff8-4ad6-a767-66dc575af1c5" />  
 
+***  
+
+Task-4: Real Peripheral IP Development (Core Contributor Task)  
+
+**Objective:** In this task, selected participants will individually own and build a real SoC peripheral IP, similar to how work is distributed in semiconductor and FPGA teams.  
+
+Each IP will be:  
+* Designed as a memory-mapped peripheral
+* Integrated into the existing RISC-V SoC
+* Validated through software and simulation
+* Optionally validated on VSDSquadron FPGA hardware  
+
+*This task marks the transition from learning exercises to actual IP ownership and contribution.*  
+  
+***    
+  
+### What This IP Does
+
+This is a **minimal SPI Master peripheral** integrated into a RISC-V SoC as a memory-mapped IP. It transmits and receives 8-bit data over SPI in **Mode 0 (CPOL=0, CPHA=0)** - the most common SPI configuration.
+
+Key features:
+- Single-byte, full-duplex transfer
+- MSB-first bit order
+- Configurable SCLK frequency via clock divider
+- Memory-mapped 32-bit bus interface (word-aligned)
+- Auto-clears START bit after transfer begins
+- Ignores new START while transfer is in progress (**BUSY = 1**)
+- DONE flag with write-1-to-clear behaviour
+
+---
+
+### SPI Signals
+
+| Signal | Direction | Description |
+| :---: | :---: | :---: |
+| `SCLK` | Output | SPI clock (idles LOW in Mode 0) |
+| `MOSI` | Output | Master Out Slave In - transmit data |
+| `MISO` | Input | Master In Slave Out - receive data |
+| `CS_N` | Output | Chip Select, active LOW |
+
+---
+
+### Register Map
+
+**Base Address: `0x00400040`**
+
+| Offset | Name | R/W | Description |
+| :---: | :---: | :---: | :---: |
+| `0x00` | CTRL | R/W | Control register |
+| `0x04` | TXDATA | W | Transmit data register |
+| `0x08` | RXDATA | R | Receive data register |
+| `0x0C` | STATUS | R/W | Status register |
+
+---
+
+### CTRL - `0x00400040`
+
+| Bits | Field | Description |
+| :---: | :---: | :---: |
+| `[0]` | EN | Enable SPI block. Must be 1 before starting a transfer |
+| `[1]` | START | Write 1 to trigger a transfer. Auto-clears internally once transfer begins |
+| `[15:8]` | CLKDIV | Clock divider. SCLK toggles every (CLKDIV+1) system clock cycles |
+| `[31:16], [7:2]` | - | Reserved |
+
+SCLK frequency formula:
+```
+SCLK = System Clock / (2 × (CLKDIV + 1))
+Example: 12MHz / (2 × 12) = 500kHz  when CLKDIV = 11
+```
+
+---
+
+### TXDATA - `0x00400044`
+
+| Bits | Field | Description |
+| :---: | :---: | :---: |
+| `[7:0]` | TXDATA | Byte to transmit. Write before starting transfer |
+| `[31:8]` | - | Reserved |
+
+Write-only. Writing loads the ***transmit shift register***
+
+---
+
+### RXDATA - `0x00400048`
+
+| Bits | Field | Description |
+| :---: | :---: | :---: |
+| `[7:0]` | RXDATA | Byte received from last completed transfer |
+| `[31:8]` | - | Reserved |
+
+Read-only. Valid only after DONE = 1.
+
+---
+
+### STATUS - `0x0040004C`
+
+| Bits | Field | Description |
+| :---: | :---: | :---:|
+| `[0]` | BUSY | 1 while transfer is in progress |
+| `[1]` | DONE | 1 when transfer has completed. Write 1 to clear |
+| `[2]` | TX_READY | 1 when not busy (ready for new transfer) |
+| `[31:3]` | - | Reserved |
+
+---
+
+### Transfer Behaviour (Mode 0)
+
+```bash
+CS_N   ‾‾‾‾|_________________________________|‾‾‾‾
+SCLK        _|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_|‾|_
+MOSI          [7] [6] [5] [4] [3] [2] [1] [0]     MSB first
+MISO        [7] [6] [5] [4] [3] [2] [1] [0]       sampled on rising edge
+```
+
+- CS_N goes LOW at start of transfer, HIGH at end
+- MOSI data changes on **falling edge**
+- MISO data sampled on **rising edge**
+- Exactly **8 bits** per transfer
+
+---
+
+### **How Software Controls This IP**
+
+### C Definitions
+
+```C
+#define SPI_BASE    0x00400040
+#define SPI_CTRL   (*((volatile uint32_t *)(SPI_BASE + 0x00)))
+#define SPI_TXDATA (*((volatile uint32_t *)(SPI_BASE + 0x04)))
+#define SPI_RXDATA (*((volatile uint32_t *)(SPI_BASE + 0x08)))
+#define SPI_STATUS (*((volatile uint32_t *)(SPI_BASE + 0x0C)))
+```
+
+### Software Flow
+
+```C
+1. Configure CLKDIV and enable:
+   SPI_CTRL = (CLKDIV << 8) | 1;         // EN=1
+
+2. Write byte to transmit:
+   SPI_TXDATA = 0xA5;
+
+3. Start transfer:
+   SPI_CTRL = (CLKDIV << 8) | 3;         // EN=1, START=1
+
+4. Poll until done:
+   while (!(SPI_STATUS & (1 << 1)));     // wait for DONE=1
+
+5. Read received byte:
+   uint32_t data = SPI_RXDATA;
+
+6. Clear DONE flag:
+   SPI_STATUS = (1 << 1);                // write-1-to-clear
+```
+
+### Complete Example
+
+```C
+#include <stdint.h>
+
+#define SPI_BASE    0x00400040
+#define SPI_CTRL   (*((volatile uint32_t *)(SPI_BASE + 0x00)))
+#define SPI_TXDATA (*((volatile uint32_t *)(SPI_BASE + 0x04)))
+#define SPI_RXDATA (*((volatile uint32_t *)(SPI_BASE + 0x08)))
+#define SPI_STATUS (*((volatile uint32_t *)(SPI_BASE + 0x0C)))
+
+uint8_t spi_transfer(uint8_t clkdiv, uint8_t data) {
+    SPI_CTRL   = (clkdiv << 8) | 1;         // configure, EN=1
+    SPI_TXDATA = data;                      // load byte
+    SPI_CTRL   = (clkdiv << 8) | 3;         // START=1
+    while (!(SPI_STATUS & (1 << 1)));       // poll DONE
+    SPI_STATUS = (1 << 1);                  // clear DONE
+    return (uint8_t)(SPI_RXDATA & 0xFF);    // return received byte
+}
+```
+
+---
+
+### Simulation Validation
+
+**Test:** Send `0xA5`, receive `0xA5` via MISO loopback (MISO tied to MOSI in testbench).
+
+**Compile and run:**
+```bash
+iverilog -DBENCH -o sim4.vvp ice40_stubs.v spi_testbench.v
+vvp sim4.vvp
+gtkwave sim4.vcd
+```
+
+**Expected output:**
+```bash
+=== SPI Master Test Start ===  
+
+CTRL configured: CLKDIV=11 EN=1
+TXDATA written : 10100101 (0xA5)
+Transfer started
+Transfer done!
+RXDATA received: 10100101 (0xA5)
+RESULT: PASS - TX matches RX  
+
+=== SPI Master Test Done ===
+```
+
+---
+
+### SoC Integration
+
+| Parameter | Value |
+| :---: | :---: |
+| Base Address | `0x400040` |
+| Address decode bit | `mem_wordaddr[4]` = `mem_addr[6]` |
+| Bus width | 32-bit, word-aligned |
+| Chip select | `spi_sel = isIO & mem_wordaddr[IO_SPI_bit]` |
+| Clock | System clock (12MHz on VSDSquadron) |
+| Reset | Active-LOW synchronous (`resetn`) |
+
+---
+
+### File Structure
+
+```bash
+RTL/
+├── riscv.v          — RISC-V SoC top-level (includes SPI integration)
+├── spi_master.v     — SPI Master IP (this module)
+├── spi_testbench.v  — Simulation testbench with MISO loopback
+├── spi_test.c       — C firmware for software validation
+├── firmware.hex     — Compiled firmware loaded into SoC RAM
+└── sim4.vcd         — Simulation waveform output
+```  
+  
+### ***Following are the snapshots captured while performing the Task 4***
+  
+<img width="1920" height="981" alt="fpga12" src="https://github.com/user-attachments/assets/10ed5dbf-683b-485c-80fc-ee655b4dbe56" />  
+
+<img width="1920" height="981" alt="fpga13" src="https://github.com/user-attachments/assets/73745708-5bfe-47b0-a63f-19309cae0ca2" />  
+  
+<img width="1920" height="981" alt="fpga14" src="https://github.com/user-attachments/assets/d347baac-bf3f-40bc-bf0b-dbe556804a83" />
+  
+<img width="1920" height="981" alt="fpga15" src="https://github.com/user-attachments/assets/cdd649c4-8b16-4ec3-9596-29639e0bcfea" />
+  
 ***
-
-
 
