@@ -260,11 +260,11 @@ set_io SPI_MISO   12
 ### Phsical Pin Connections  
 | Signal   | FPGA Pin | Board Header  | Connect To |
 |:--------:|:--------:|:-------------:|:----------:|
-| SPI_SCLK | 10       | Header pin 10 | Slave SCLK |
+| SPI_SCLK | 10       | Header pin 10 | No Connection (Internal Clock is used) |
 | SPI_MOSI | 11       | Header pin 11 | Slave MOSI |
 | SPI_MISO | 12       | Header pin 12 | Slave MISO |
-| SPI_CS_N | 9        | Header pin 9  | Slave CS   |
-| GND      | 23       | GND           | Slave GND  |  
+| SPI_CS_N | 9        | Header pin 9  | No Connection (No Slave) |
+| GND      | 23       | GND           | GND on FPGA |  
   
 ### Loopback Test (No External Slave)  
 
