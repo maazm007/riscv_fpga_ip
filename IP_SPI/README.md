@@ -104,7 +104,7 @@
 | 7:0  | TXDATA   | W   | 0     | Byte to transmit. Loaded into shift register on START |
 | 31:8 | Reserved | -   | 0     |-                      |  
   
-> Note: Write TXDATA before asserting START. Writing during transfer has no effect on current transfer.  
+> ***Note: Write TXDATA before asserting START. Writing during transfer has no effect on current transfer***  
   
 ### RXDATA: Received Data Register (Offset 0x08)  
   
@@ -117,7 +117,7 @@
 | 7:0  | RXDATA   | R   | 0     | Last byte received from slave via MISO. Updated at end of transfer. |
 | 31:8 | Reserved | -   | 0     | Always reads 0                                              |  
   
-> Note: RXDATA holds the received byte until the next completed transfer overwrites it. Read RXDATA only after DONE=1  
+> ***Note: RXDATA holds the received byte until the next completed transfer overwrites it. Read RXDATA only after DONE=1***
   
 ### STATUS: Status Register (Offset 0x0C)  
   
@@ -268,11 +268,11 @@ set_io SPI_MISO   12
   
 ### Loopback Test (No External Slave)  
 
-* Connect a jumper wire:
-  Header pin 11 (SPI_MOSI) ──── Header pin 12 (SPI_MISO)
+* *Connect a jumper wire:
+  Header pin 11 (SPI_MOSI) ──── Header pin 12 (SPI_MISO)*
 
-* This creates a hardware loopback:
-  Whatever FPGA transmits on MOSI is received back on MISO, which confirms complete TX and RX signal path works  
+* *This creates a hardware loopback:
+  Whatever FPGA transmits on MOSI is received back on MISO, which confirms complete TX and RX signal path works*
     
 ### Build and Flash Commands
 ```bash
@@ -292,8 +292,8 @@ sudo make terminal   # open serial monitor after flashing
 | Stop bits  | 1                      |
 | Port       | /dev/ttyUSB1 (CH340)   | 
   
-> Note: If terminal shows nothing after flashing, press the RESET button
-on the VSDSquadron board while the terminal is open to restart firmware  
+> ***Note: If terminal shows nothing after flashing, press the RESET button
+on the VSDSquadron board while the terminal is open to restart firmware***  
 
 ***  
 
@@ -323,7 +323,7 @@ on the VSDSquadron board while the terminal is open to restart firmware
 ```  
   
 ### Example: Basic single byte transfer  
-* Purpose: Validate SPI IP with MOSI shorted to MISO. Sends 0xA5 and verifies the same value is received back  
+* *Purpose: Validate SPI IP with MOSI shorted to MISO. Sends 0xA5 and verifies the same value is received back*
   
 ```C  
 // Print 8 bits in binary format
@@ -406,8 +406,8 @@ sudo make terminal
 
 ## *9️⃣ Validation and Expected Output*  
 ### What to Observe?
-When running spi_test.c on the VSDSquadron board with MOSI shorted to MISO
-(loopback), the UART terminal should display:
+*When running spi_test.c on the VSDSquadron board with MOSI shorted to MISO
+(loopback), the UART terminal should display:*
 ```bash
 === SPI Master Test Start ===
 CTRL configured: CLKDIV=11 EN=1
