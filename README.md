@@ -1094,6 +1094,15 @@ sudo make terminal
   
 </details>  
 
+***  
+
+<details>
+<summary><b>Task-5:</b> Commercial Grade SPI IP Development\</summary>  
+
+### *Click on the this [Link](https://github.com/maazm007/riscv_fpga_ip/tree/main/IP_SPI) to access the documentation and RTL files*  
+
+</details>
+    
 ***
 
 
