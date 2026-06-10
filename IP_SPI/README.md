@@ -49,13 +49,40 @@ wire spi_sel = isIO & mem_wordaddr[IO_SPI_bit];
 ***  
   
 ## ***How to Test?***  
-```bash
-SPI_CTRL  = (11 << 8) | 1;          // CLKDIV=11, EN=1
+
+*Connect a jumper wire between MOSI (pin 11) and MISO (pin 12)
+for loopback, whatever is sent comes back as received*
+
+```C
+#include <stdint.h>
+
+// Register addresses
+#define SPI_CTRL    (*((volatile uint32_t *)0x400040))
+#define SPI_TXDATA  (*((volatile uint32_t *)0x400044))
+#define SPI_RXDATA  (*((volatile uint32_t *)0x400048))
+#define SPI_STATUS  (*((volatile uint32_t *)0x40004C))
+
+// Step 1: Configure clock and enable
+// SCLK = 12MHz / (CLKDIV+1) = 12MHz / 12 = 1MHz
+SPI_CTRL = (11 << 8) | 1;   // CLKDIV=11, EN=1
+
+// Step 2: Load byte to transmit
 SPI_TXDATA = 0xA5;
-SPI_CTRL  = (11 << 8) | 3;          // START=1
-while(!(SPI_STATUS & (1<<1)));
-printf("RX: 0x%X\n", SPI_RXDATA);   // expect 0xA5
-```  
+
+// Step 3: Start transfer
+SPI_CTRL = (11 << 8) | 3;   // EN=1, START=1
+
+// Step 4: Wait for transfer to complete
+// STATUS bit 1 = DONE flag
+while(!(SPI_STATUS & (1 << 1)));
+
+// Step 5: Read received byte
+printf("RX: 0x%X\n", SPI_RXDATA);  // expect 0x000000A5
+```
+```
+Expected output:
+RX: 0xA5 
+```
   
 ***  
   
