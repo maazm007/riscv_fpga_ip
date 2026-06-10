@@ -63,8 +63,8 @@
   
 ## ***3️⃣ Block Diagram***  
   
-
-  
+<img width="694" height="1200" alt="Block_Diagram" src="https://github.com/user-attachments/assets/2e94c1ec-cf6f-4a4c-abba-9ab17ca37c1b" />
+ 
 ***  
   
 ## ***4️⃣ Software Programming Model***  
